@@ -2,7 +2,7 @@
 // Provides better performance and larger storage capacity than localStorage
 
 const DB_NAME = 'HealingTrackerDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // Store names
 export const STORES = {
@@ -10,7 +10,8 @@ export const STORES = {
   JOURNAL_ENTRIES: 'journalEntries',
   TESTING_REMINDERS: 'testingReminders',
   DAILY_ROUTINES: 'dailyRoutines',
-  HERB_INVENTORY: 'herbInventory'
+  HERB_INVENTORY: 'herbInventory',
+  OUTBREAKS: 'outbreaks'
 } as const;
 
 let dbInstance: IDBDatabase | null = null;
@@ -62,6 +63,12 @@ export const initDB = (): Promise<IDBDatabase> => {
 
       if (!db.objectStoreNames.contains(STORES.HERB_INVENTORY)) {
         db.createObjectStore(STORES.HERB_INVENTORY, { keyPath: 'id' });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.OUTBREAKS)) {
+        const outbreaksStore = db.createObjectStore(STORES.OUTBREAKS, { keyPath: 'id' });
+        outbreaksStore.createIndex('startDate', 'startDate', { unique: false });
+        outbreaksStore.createIndex('severity', 'severity', { unique: false });
       }
     };
   });

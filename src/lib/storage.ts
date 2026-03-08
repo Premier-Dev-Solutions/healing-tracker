@@ -199,3 +199,39 @@ export const getAllDailyRoutineLogs = async (): Promise<DailyRoutineLogNew[]> =>
   const logs = await idb.getAll<DailyRoutineLogNew>(idb.STORES.DAILY_ROUTINES);
   return logs.sort((a, b) => b.date.localeCompare(a.date));
 };
+
+// Outbreak Tracking
+export interface OutbreakEntry {
+  id: string;
+  startDate: string; // ISO date string
+  startTime?: string; // HH:MM format
+  endDate?: string; // ISO date string, undefined if ongoing
+  endTime?: string; // HH:MM format
+  severity: 1 | 2 | 3 | 4 | 5; // 1=Mild, 2=Moderate, 3=Severe, 4=Very Severe, 5=Extreme
+  foodsBeforeOutbreak: Array<{
+    foodName: string;
+    consumedDate: string;
+    consumedTime: string;
+    hoursBeforeOutbreak: number;
+  }>;
+  notes: string;
+  symptoms?: string;
+  triggers?: string;
+  isOngoing: boolean;
+}
+
+export const getOutbreakEntries = async (): Promise<OutbreakEntry[]> => {
+  return await idb.getAll<OutbreakEntry>(idb.STORES.OUTBREAKS);
+};
+
+export const saveOutbreakEntry = async (entry: OutbreakEntry): Promise<void> => {
+  await idb.put(idb.STORES.OUTBREAKS, entry);
+};
+
+export const deleteOutbreakEntry = async (id: string): Promise<void> => {
+  await idb.deleteByKey(idb.STORES.OUTBREAKS, id);
+};
+
+export const getOutbreakById = async (id: string): Promise<OutbreakEntry | undefined> => {
+  return await idb.getByKey<OutbreakEntry>(idb.STORES.OUTBREAKS, id);
+};

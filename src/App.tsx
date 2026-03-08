@@ -6,8 +6,9 @@ import { DailyJournal } from "./components/DailyJournal";
 import { DailyRoutine } from "./components/DailyRoutine";
 import { ConsistencyTracker } from "./components/ConsistencyTracker";
 import { TestingTracker } from "./components/TestingTracker";
+import { OutbreakTracker } from "./components/OutbreakTracker";
 import { Settings } from "./components/Settings";
-import { Activity, Leaf, BookOpen, Calendar, Stethoscope, ClipboardList, Settings as SettingsIcon } from "lucide-react";
+import { Activity, Leaf, BookOpen, Calendar, Stethoscope, ClipboardList, AlertCircle, Settings as SettingsIcon } from "lucide-react";
 import { autoMigrate } from "./lib/migration";
 
 export default function App() {
@@ -29,7 +30,7 @@ export default function App() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-auto !inline-grid grid-cols-7 gap-1 mb-8 !p-1">
+          <TabsList className="w-auto !inline-grid grid-cols-8 gap-1 mb-8 !p-1">
             <TabsTrigger value="dashboard" className="flex items-center justify-center gap-2">
               <Activity className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -45,6 +46,10 @@ export default function App() {
             <TabsTrigger value="journal" className="flex items-center justify-center gap-2">
               <BookOpen className="w-4 h-4" />
               <span className="hidden sm:inline">Journal</span>
+            </TabsTrigger>
+            <TabsTrigger value="outbreaks" className="flex items-center justify-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Outbreaks</span>
             </TabsTrigger>
             <TabsTrigger value="consistency" className="flex items-center justify-center gap-2">
               <Calendar className="w-4 h-4" />
@@ -78,6 +83,10 @@ export default function App() {
 
           <TabsContent value="consistency">
             <ConsistencyTracker />
+          </TabsContent>
+
+          <TabsContent value="outbreaks">
+            <OutbreakTracker />
           </TabsContent>
 
           <TabsContent value="testing">

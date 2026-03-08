@@ -157,6 +157,10 @@ export function Settings() {
                 <span>{stats[idb.STORES.DAILY_ROUTINES] || 0}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Outbreak Entries:</span>
+                <span>{stats[idb.STORES.OUTBREAKS] || 0}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">Testing Reminders:</span>
                 <span>{stats[idb.STORES.TESTING_REMINDERS] || 0}</span>
               </div>
