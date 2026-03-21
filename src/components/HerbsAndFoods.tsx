@@ -34,7 +34,7 @@ import {
   type HerbFood,
   type Purchase,
 } from "../lib/storage";
-import { importCSV, generateCSVTemplate } from "../lib/csvParser";
+import { importFile, generateCSVTemplate } from "../lib/csvParser";
 import {
   Plus,
   Trash2,
@@ -239,13 +239,12 @@ export function HerbsAndFoods() {
 
     try {
       setImportMessage(null);
-      const text = await file.text();
-      const importedItems = importCSV(text);
+      const importedItems = await importFile(file);
 
       if (importedItems.length === 0) {
         setImportMessage({
           type: "error",
-          text: "No valid items found in CSV file",
+          text: "No valid items found in file",
         });
         return;
       }
@@ -398,14 +397,17 @@ export function HerbsAndFoods() {
                 </div>
 
                 <div>
-                  <Label htmlFor="csv-upload">Select CSV File</Label>
+                  <Label htmlFor="csv-upload">Select CSV or Excel File</Label>
                   <Input
                     id="csv-upload"
                     type="file"
-                    accept=".csv"
+                    accept=".csv,.xlsx,.xls"
                     onChange={handleImportCSV}
                     className="cursor-pointer"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Accepts CSV (.csv) and Excel (.xlsx, .xls) files
+                  </p>
                 </div>
               </div>
             </DialogContent>

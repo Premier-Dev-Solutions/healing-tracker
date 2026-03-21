@@ -1,26 +1,59 @@
 // Storage utilities using IndexedDB - will be replaced with Supabase later
 import * as idb from './indexedDB';
 
+// Herb interface - for herbal supplements and remedies
+export interface Herb {
+  id: string;
+  name: string;
+  supplementType: 'herb' | 'tonic' | 'herb bundle' | 'herb blend' | 'tea bag' | 'pills' | 'topical';
+  category: string;
+  secondaryCategory?: string;
+  benefits: string;
+  description?: string;
+  ingredients?: string;
+  supplier?: string;
+  preparationInstructions?: string;
+  serving?: string; // e.g., "2/4 OZ"
+  dailyAmount?: string; // e.g., "3 Cups Daily"
+  dateAdded: string;
+  purchases: Purchase[];
+}
+
+// Food interface - for food items with amino acid tracking
+export interface Food {
+  id: string;
+  name: string;
+  category?: string; // e.g., "Protein", "Vegetables", "Fruits"
+  servingSize: string; // e.g., "100g", "1 cup"
+  lysine: number; // mg per serving
+  arginine: number; // mg per serving
+  supplier?: string;
+  notes?: string;
+  description?: string;
+  ingredients?: string; // for processed foods
+  dateAdded: string;
+  purchases: Purchase[];
+}
+
+// Legacy interface for backward compatibility during migration
 export interface HerbFood {
   id: string;
   name: string;
-  type: 'herb' | 'food' | 'tonic' | 'herb bundle' | 'herb blend' | 'tea bag' | 'pills' | 'topical' | 'supplement';
+  supplementType: 'herb' | 'food' | 'tonic' | 'herb bundle' | 'herb blend' | 'tea bag' | 'pills' | 'topical' | 'supplement';
   category: string;
-  secondaryCategory?: string; // optional secondary category for both herbs and foods
+  secondaryCategory?: string;
   benefits: string;
-  description?: string; // detailed description of the herb/food
-  ingredients?: string; // ingredients list
+  description?: string;
+  ingredients?: string;
   dateAdded: string;
   purchases: Purchase[];
-  supplier?: string; // primary supplier for this herb/food
-  // For foods only: amino acid tracking
-  arginine?: number; // mg per serving
-  lysine?: number; // mg per serving
+  supplier?: string;
+  arginine?: number;
+  lysine?: number;
   servingSize?: string;
-  // For herbs only: preparation and requirements
   preparationInstructions?: string;
-  dailyServingRequirement?: number; // how many servings per day
-  servingSizePerServing?: string; // e.g., "1-2 tablespoons", "1 cup"
+  dailyServingRequirement?: number;
+  servingSizePerServing?: string;
 }
 
 export interface Purchase {
@@ -29,6 +62,20 @@ export interface Purchase {
   quantity: string;
   cost?: number;
   source?: string;
+}
+
+// Supplier interface - for managing supplier information
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  notes?: string;
+  dateAdded: string;
+  isActive: boolean; // Can mark suppliers as inactive without deleting
 }
 
 export interface JournalEntry {
@@ -45,7 +92,7 @@ export interface JournalEntry {
   foodsConsumed: string[];
 }
 
-// Herbs & Foods
+// Herbs & Foods (Legacy - keeping for backward compatibility)
 export const getHerbsFoods = async (): Promise<HerbFood[]> => {
   return await idb.getAll<HerbFood>(idb.STORES.HERBS_FOODS);
 };
@@ -56,6 +103,32 @@ export const saveHerbFood = async (item: HerbFood): Promise<void> => {
 
 export const deleteHerbFood = async (id: string): Promise<void> => {
   await idb.deleteByKey(idb.STORES.HERBS_FOODS, id);
+};
+
+// Herbs (New)
+export const getHerbs = async (): Promise<Herb[]> => {
+  return await idb.getAll<Herb>(idb.STORES.HERBS);
+};
+
+export const saveHerb = async (item: Herb): Promise<void> => {
+  await idb.put(idb.STORES.HERBS, item);
+};
+
+export const deleteHerb = async (id: string): Promise<void> => {
+  await idb.deleteByKey(idb.STORES.HERBS, id);
+};
+
+// Foods (New)
+export const getFoods = async (): Promise<Food[]> => {
+  return await idb.getAll<Food>(idb.STORES.FOODS);
+};
+
+export const saveFood = async (item: Food): Promise<void> => {
+  await idb.put(idb.STORES.FOODS, item);
+};
+
+export const deleteFood = async (id: string): Promise<void> => {
+  await idb.deleteByKey(idb.STORES.FOODS, id);
 };
 
 // Journal Entries
@@ -234,4 +307,72 @@ export const deleteOutbreakEntry = async (id: string): Promise<void> => {
 
 export const getOutbreakById = async (id: string): Promise<OutbreakEntry | undefined> => {
   return await idb.getByKey<OutbreakEntry>(idb.STORES.OUTBREAKS, id);
+};
+
+// Suppliers
+export const getSuppliers = async (): Promise<Supplier[]> => {
+  return await idb.getAll<Supplier>(idb.STORES.SUPPLIERS);
+};
+
+export const saveSupplier = async (supplier: Supplier): Promise<void> => {
+  await idb.put(idb.STORES.SUPPLIERS, supplier);
+};
+
+export const deleteSupplier = async (id: string): Promise<void> => {
+  await idb.deleteByKey(idb.STORES.SUPPLIERS, id);
+};
+
+export const getSupplierById = async (id: string): Promise<Supplier | undefined> => {
+  return await idb.getByKey<Supplier>(idb.STORES.SUPPLIERS, id);
+};
+
+/**
+ * GLOBAL SUPPLIER RENAME
+ * Renames a supplier across all herbs and their purchase histories
+ * This is useful for fixing typos or standardizing supplier names
+ */
+export const renameSupplierGlobally = async (oldName: string, newName: string): Promise<void> => {
+  const herbs = await getHerbs();
+  let updated = false;
+
+  for (const herb of herbs) {
+    let herbModified = false;
+
+    // Update herb's default supplier
+    if (herb.supplier === oldName) {
+      herb.supplier = newName;
+      herbModified = true;
+    }
+
+    // Update purchase sources
+    if (herb.purchases && herb.purchases.length > 0) {
+      herb.purchases.forEach(purchase => {
+        if (purchase.source === oldName) {
+          purchase.source = newName;
+          herbModified = true;
+        }
+      });
+    }
+
+    // Save if modified
+    if (herbModified) {
+      await saveHerb(herb);
+      updated = true;
+    }
+  }
+
+  return;
+};
+
+/**
+ * MERGE SUPPLIERS
+ * Merges multiple supplier names into one
+ * Updates all herbs and purchases, then optionally deletes the old supplier records
+ */
+export const mergeSuppliers = async (supplierNamesToMerge: string[], targetName: string): Promise<void> => {
+  for (const oldName of supplierNamesToMerge) {
+    if (oldName !== targetName) {
+      await renameSupplierGlobally(oldName, targetName);
+    }
+  }
 };

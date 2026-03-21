@@ -2,16 +2,19 @@
 // Provides better performance and larger storage capacity than localStorage
 
 const DB_NAME = 'HealingTrackerDB';
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 
 // Store names
 export const STORES = {
-  HERBS_FOODS: 'herbsFoods',
+  HERBS_FOODS: 'herbsFoods', // Legacy - for backward compatibility
+  HERBS: 'herbs', // New - herbal supplements
+  FOODS: 'foods', // New - food items with nutrition
   JOURNAL_ENTRIES: 'journalEntries',
   TESTING_REMINDERS: 'testingReminders',
   DAILY_ROUTINES: 'dailyRoutines',
   HERB_INVENTORY: 'herbInventory',
-  OUTBREAKS: 'outbreaks'
+  OUTBREAKS: 'outbreaks',
+  SUPPLIERS: 'suppliers'
 } as const;
 
 let dbInstance: IDBDatabase | null = null;
@@ -43,7 +46,7 @@ export const initDB = (): Promise<IDBDatabase> => {
       // Create object stores if they don't exist
       if (!db.objectStoreNames.contains(STORES.HERBS_FOODS)) {
         const herbsStore = db.createObjectStore(STORES.HERBS_FOODS, { keyPath: 'id' });
-        herbsStore.createIndex('type', 'type', { unique: false });
+        herbsStore.createIndex('supplementType', 'supplementType', { unique: false });
         herbsStore.createIndex('dateAdded', 'dateAdded', { unique: false });
       }
 
@@ -69,6 +72,27 @@ export const initDB = (): Promise<IDBDatabase> => {
         const outbreaksStore = db.createObjectStore(STORES.OUTBREAKS, { keyPath: 'id' });
         outbreaksStore.createIndex('startDate', 'startDate', { unique: false });
         outbreaksStore.createIndex('severity', 'severity', { unique: false });
+      }
+
+      // New separate stores for Herbs and Foods
+      if (!db.objectStoreNames.contains(STORES.HERBS)) {
+        const herbsStore = db.createObjectStore(STORES.HERBS, { keyPath: 'id' });
+        herbsStore.createIndex('supplementType', 'supplementType', { unique: false });
+        herbsStore.createIndex('dateAdded', 'dateAdded', { unique: false });
+        herbsStore.createIndex('category', 'category', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.FOODS)) {
+        const foodsStore = db.createObjectStore(STORES.FOODS, { keyPath: 'id' });
+        foodsStore.createIndex('category', 'category', { unique: false });
+        foodsStore.createIndex('dateAdded', 'dateAdded', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.SUPPLIERS)) {
+        const suppliersStore = db.createObjectStore(STORES.SUPPLIERS, { keyPath: 'id' });
+        suppliersStore.createIndex('name', 'name', { unique: false });
+        suppliersStore.createIndex('isActive', 'isActive', { unique: false });
+        suppliersStore.createIndex('dateAdded', 'dateAdded', { unique: false });
       }
     };
   });

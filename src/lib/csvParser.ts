@@ -1,5 +1,6 @@
-// CSV Parser for importing herb/food inventory
+// CSV and XLSX Parser for importing herb/food inventory
 import { HerbFood } from './storage';
+import * as XLSX from 'xlsx';
 
 export interface ImportOptions {
   mode: 'replace' | 'merge' | 'update';
@@ -102,7 +103,7 @@ export const mapCSVToHerbFood = (row: Record<string, string>): HerbFood | null =
   const item: HerbFood = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
     name: product,
-    type: type,
+    supplementType: type,
     category: row['Category'] || 'Uncategorized',
     secondaryCategory: row['Sub Category'] || undefined,
     benefits: row['Benefits'] || '',
@@ -141,6 +142,48 @@ export const mapCSVToHerbFood = (row: Record<string, string>): HerbFood | null =
 };
 
 /**
+ * Parse XLSX file to array of objects
+ */
+export const parseXLSX = async (file: File): Promise<Record<string, string>[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+
+        // Get first sheet
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        // Convert to JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+
+        // Convert to our format (string values only)
+        const rows = jsonData.map((row: any) => {
+          const stringRow: Record<string, string> = {};
+          Object.keys(row).forEach(key => {
+            stringRow[key] = String(row[key] || '');
+          });
+          return stringRow;
+        });
+
+        resolve(rows);
+      } catch (error) {
+        reject(new Error('Failed to parse XLSX file'));
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error('Failed to read XLSX file'));
+    };
+
+    reader.readAsBinaryString(file);
+  });
+};
+
+/**
  * Import CSV and convert to HerbFood array
  */
 export const importCSV = (csvText: string): HerbFood[] => {
@@ -155,6 +198,39 @@ export const importCSV = (csvText: string): HerbFood[] => {
   }
 
   return items;
+};
+
+/**
+ * Import XLSX file and convert to HerbFood array
+ */
+export const importXLSX = async (file: File): Promise<HerbFood[]> => {
+  const rows = await parseXLSX(file);
+  const items: HerbFood[] = [];
+
+  for (const row of rows) {
+    const item = mapCSVToHerbFood(row);
+    if (item) {
+      items.push(item);
+    }
+  }
+
+  return items;
+};
+
+/**
+ * Import file (auto-detect CSV or XLSX) and convert to HerbFood array
+ */
+export const importFile = async (file: File): Promise<HerbFood[]> => {
+  const fileName = file.name.toLowerCase();
+
+  if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+    return importXLSX(file);
+  } else if (fileName.endsWith('.csv')) {
+    const text = await file.text();
+    return importCSV(text);
+  } else {
+    throw new Error('Unsupported file type. Please upload a CSV or XLSX file.');
+  }
 };
 
 /**
