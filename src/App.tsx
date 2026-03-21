@@ -24,9 +24,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <header className="mb-8">
-          <h1 className="text-green-700 mb-2">Healing Journey Tracker</h1>
-          <p className="text-gray-600">Track your wellness path with intention</p>
+        <header className="mb-8 flex items-center justify-center">
+          <img src="/Transparent Logo.svg" alt="Heal From It" style={{ width: '400px', height: 'auto' }} />
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
