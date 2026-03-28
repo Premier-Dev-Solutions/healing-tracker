@@ -1,7 +1,7 @@
 
-  # Healing Journey Tracker
+  # Heal From It
 
-  This is a code bundle for Healing Journey Tracker. The original project is available at https://www.figma.com/design/88kP01eFQ4MaRhOPkwGEqp/Healing-Journey-Tracker.
+  A comprehensive health tracking application designed to help you monitor and manage your healing journey. Track your daily routines, herbs, supplements, outbreaks, and identify patterns in your health data.
 
   ## Running the code
 

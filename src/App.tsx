@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Dashboard } from "./components/Dashboard";
+import { Herbs } from "./components/Herbs";
+import { Suppliers } from "./components/Suppliers";
 import { HerbsAndFoods } from "./components/HerbsAndFoods";
 import { DailyJournal } from "./components/DailyJournal";
 import { DailyRoutine } from "./components/DailyRoutine";
@@ -8,7 +10,7 @@ import { ConsistencyTracker } from "./components/ConsistencyTracker";
 import { TestingTracker } from "./components/TestingTracker";
 import { OutbreakTracker } from "./components/OutbreakTracker";
 import { Settings } from "./components/Settings";
-import { Activity, Leaf, BookOpen, Calendar, Stethoscope, ClipboardList, AlertCircle, Settings as SettingsIcon } from "lucide-react";
+import { Activity, Leaf, BookOpen, Calendar, Stethoscope, ClipboardList, AlertCircle, Settings as SettingsIcon, Pill, Store } from "lucide-react";
 import { autoMigrate } from "./lib/migration";
 
 export default function App() {
@@ -29,14 +31,18 @@ export default function App() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-auto !inline-grid grid-cols-8 gap-1 mb-8 !p-1">
+          <TabsList className="w-auto !inline-grid grid-cols-9 gap-1 mb-8 !p-1">
             <TabsTrigger value="dashboard" className="flex items-center justify-center gap-2">
               <Activity className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
             <TabsTrigger value="herbs" className="flex items-center justify-center gap-2">
-              <Leaf className="w-4 h-4" />
-              <span className="hidden sm:inline">Herbs & Foods</span>
+              <Pill className="w-4 h-4" />
+              <span className="hidden sm:inline">Herbs</span>
+            </TabsTrigger>
+            <TabsTrigger value="suppliers" className="flex items-center justify-center gap-2">
+              <Store className="w-4 h-4" />
+              <span className="hidden sm:inline">Suppliers</span>
             </TabsTrigger>
             <TabsTrigger value="routine" className="flex items-center justify-center gap-2">
               <ClipboardList className="w-4 h-4" />
@@ -69,7 +75,11 @@ export default function App() {
           </TabsContent>
 
           <TabsContent value="herbs">
-            <HerbsAndFoods />
+            <Herbs />
+          </TabsContent>
+
+          <TabsContent value="suppliers">
+            <Suppliers />
           </TabsContent>
 
           <TabsContent value="routine">
