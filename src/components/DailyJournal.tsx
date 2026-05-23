@@ -7,7 +7,7 @@ import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Slider } from "./ui/slider";
-import { getJournalEntries, getJournalEntryByDate, saveJournalEntry, getHerbsFoods, type JournalEntry, type HerbFood } from "../lib/storage";
+import { getJournalEntries, getJournalEntryByDate, saveJournalEntry, getDailyRoutineLogNew, getFoods, type JournalEntry, type Food } from "../lib/storage";
 import { Calendar, Save, TrendingUp, TrendingDown } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
@@ -24,14 +24,14 @@ export function DailyJournal() {
     herbsConsumed: [],
     foodsConsumed: []
   });
-  const [availableItems, setAvailableItems] = useState<HerbFood[]>([]);
+  const [foodsCatalog, setFoodsCatalog] = useState<Food[]>([]);
 
   useEffect(() => {
-    const loadItems = async () => {
-      const items = await getHerbsFoods();
-      setAvailableItems(items);
+    const loadFoods = async () => {
+      const foods = await getFoods();
+      setFoodsCatalog(foods);
     };
-    loadItems();
+    loadFoods();
   }, []);
 
   useEffect(() => {
@@ -75,17 +75,6 @@ export function DailyJournal() {
     alert('Entry saved successfully!');
   };
 
-  const toggleItem = (itemId: string, type: 'herb' | 'food') => {
-    const list = type === 'herb' ? (entry.herbsConsumed || []) : (entry.foodsConsumed || []);
-    const key = type === 'herb' ? 'herbsConsumed' : 'foodsConsumed';
-    
-    if (list.includes(itemId)) {
-      setEntry({ ...entry, [key]: list.filter(id => id !== itemId) });
-    } else {
-      setEntry({ ...entry, [key]: [...list, itemId] });
-    }
-  };
-
   const getQualityLabel = (value: number) => {
     const labels = ['Poor', 'Fair', 'Good', 'Great', 'Excellent'];
     return labels[value - 1] || 'Fair';
@@ -96,29 +85,66 @@ export function DailyJournal() {
     return labels[value - 1] || 'Moderate';
   };
 
-  // Calculate daily lysine score
-  const calculateLysineScore = () => {
-    const consumedFoods = availableItems.filter(
-      item => item.type === 'food' && (entry.foodsConsumed || []).includes(item.id)
-    );
-    
+  // Calculate daily lysine score from foods logged in Daily Routine
+  const calculateLysineScore = async () => {
+    const routineLog = await getDailyRoutineLogNew(selectedDate);
+
+    if (!routineLog || routineLog.foods.length === 0) {
+      return {
+        score: 0,
+        lysine: 0,
+        arginine: 0,
+        hasData: false,
+        noRoutineLog: true
+      };
+    }
+
     let totalLysine = 0;
     let totalArginine = 0;
-    
-    consumedFoods.forEach(food => {
-      if (food.lysine) totalLysine += food.lysine;
-      if (food.arginine) totalArginine += food.arginine;
+    let foundNutritionData = false;
+
+    // Look up each food from the routine log in the foods catalog
+    routineLog.foods.forEach(foodEntry => {
+      const food = foodsCatalog.find(f =>
+        f.name.toLowerCase() === foodEntry.name.toLowerCase()
+      );
+
+      if (food) {
+        if (food.lysine) {
+          totalLysine += food.lysine;
+          foundNutritionData = true;
+        }
+        if (food.arginine) {
+          totalArginine += food.arginine;
+          foundNutritionData = true;
+        }
+      }
     });
-    
+
     return {
       score: totalLysine - totalArginine,
       lysine: totalLysine,
       arginine: totalArginine,
-      hasData: consumedFoods.some(f => f.lysine || f.arginine)
+      hasData: foundNutritionData,
+      noRoutineLog: false
     };
   };
 
-  const lysineData = calculateLysineScore();
+  const [lysineData, setLysineData] = useState({
+    score: 0,
+    lysine: 0,
+    arginine: 0,
+    hasData: false,
+    noRoutineLog: true
+  });
+
+  useEffect(() => {
+    const updateLysineData = async () => {
+      const data = await calculateLysineScore();
+      setLysineData(data);
+    };
+    updateLysineData();
+  }, [selectedDate, foodsCatalog]);
 
   return (
     <div className="space-y-6">
@@ -262,59 +288,21 @@ export function DailyJournal() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Items Consumed</CardTitle>
-          <CardDescription>Track which herbs and foods you consumed today</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {availableItems.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No items in your catalog yet. Add some in the Herbs & Foods tab!</p>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <Label>Herbs</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {availableItems.filter(i => i.type === 'herb').map(item => (
-                    <Badge
-                      key={item.id}
-                      variant={(entry.herbsConsumed || []).includes(item.id) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => toggleItem(item.id, 'herb')}
-                    >
-                      {item.name}
-                    </Badge>
-                  ))}
-                  {availableItems.filter(i => i.type === 'herb').length === 0 && (
-                    <span className="text-sm text-gray-500">No herbs in catalog</span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label>Foods</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {availableItems.filter(i => i.type === 'food').map(item => (
-                    <Badge
-                      key={item.id}
-                      variant={(entry.foodsConsumed || []).includes(item.id) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => toggleItem(item.id, 'food')}
-                    >
-                      {item.name}
-                    </Badge>
-                  ))}
-                  {availableItems.filter(i => i.type === 'food').length === 0 && (
-                    <span className="text-sm text-gray-500">No foods in catalog</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {lysineData.hasData && (
+      {lysineData.noRoutineLog ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Daily Lysine Score</CardTitle>
+            <CardDescription>Track your lysine vs arginine ratio</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert>
+              <AlertDescription className="text-gray-600">
+                No foods logged in Daily Routine for this date. Track your food intake in the Daily Routine tab to see your lysine score here.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      ) : lysineData.hasData && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

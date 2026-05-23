@@ -37,27 +37,6 @@ export interface Food {
   purchases: Purchase[];
 }
 
-// Legacy interface for backward compatibility during migration
-export interface HerbFood {
-  id: string;
-  name: string;
-  supplementType: 'herb' | 'food' | 'tonic' | 'herb bundle' | 'herb blend' | 'tea bag' | 'pills' | 'topical' | 'supplement';
-  category: string;
-  secondaryCategory?: string;
-  benefits: string;
-  description?: string;
-  ingredients?: string;
-  dateAdded: string;
-  purchases: Purchase[];
-  supplier?: string;
-  arginine?: number;
-  lysine?: number;
-  servingSize?: string;
-  preparationInstructions?: string;
-  dailyServingRequirement?: number;
-  servingSizePerServing?: string;
-}
-
 export interface Purchase {
   id: string;
   date: string;
@@ -94,20 +73,7 @@ export interface JournalEntry {
   foodsConsumed: string[];
 }
 
-// Herbs & Foods (Legacy - keeping for backward compatibility)
-export const getHerbsFoods = async (): Promise<HerbFood[]> => {
-  return await idb.getAll<HerbFood>(idb.STORES.HERBS_FOODS);
-};
-
-export const saveHerbFood = async (item: HerbFood): Promise<void> => {
-  await idb.put(idb.STORES.HERBS_FOODS, item);
-};
-
-export const deleteHerbFood = async (id: string): Promise<void> => {
-  await idb.deleteByKey(idb.STORES.HERBS_FOODS, id);
-};
-
-// Herbs (New)
+// Herbs
 export const getHerbs = async (): Promise<Herb[]> => {
   return await idb.getAll<Herb>(idb.STORES.HERBS);
 };

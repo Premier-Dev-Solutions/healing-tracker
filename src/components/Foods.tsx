@@ -11,12 +11,17 @@ import { Badge } from "./ui/badge";
 import { getFoods, saveFood, deleteFood, type Food, type Purchase } from "../lib/storage";
 import { Plus, Trash2, Edit, ShoppingCart, Search as SearchIcon, Grid, Table } from "lucide-react";
 import { calculateRatio, getRatioQuality } from "../lib/usdaApi";
+import { useAuth } from "../stores/authStore";
+import { syncDeleteFood } from "../lib/sync";
 
 /**
  * FOODS COMPONENT
  * Manages food inventory with lysine/arginine tracking for HSV management
  */
 export function Foods() {
+  // Auth state
+  const { user } = useAuth();
+
   // ============================================
   // STATE MANAGEMENT
   // ============================================
@@ -149,6 +154,9 @@ export function Foods() {
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this food?")) {
       await deleteFood(id);
+      if (user) {
+        await syncDeleteFood(user.id, id);
+      }
       await loadFoods();
     }
   };

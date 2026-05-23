@@ -9,6 +9,8 @@ import { Badge } from "./ui/badge";
 import { getSuppliers, saveSupplier, deleteSupplier, getHerbs, renameSupplierGlobally, type Supplier, type Herb } from "../lib/storage";
 import { Plus, Trash2, Edit, Store, Phone, Mail, Globe, MapPin, BarChart3, RefreshCw } from "lucide-react";
 import { Switch } from "./ui/switch";
+import { useAuth } from "../stores/authStore";
+import { syncDeleteSupplier } from "../lib/sync";
 
 /**
  * SUPPLIERS COMPONENT
@@ -21,6 +23,9 @@ import { Switch } from "./ui/switch";
  */
 
 export function Suppliers() {
+  // Auth state
+  const { user } = useAuth();
+
   // ============================================
   // STATE MANAGEMENT
   // ============================================
@@ -122,6 +127,9 @@ export function Suppliers() {
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this supplier?")) {
       await deleteSupplier(id);
+      if (user) {
+        await syncDeleteSupplier(user.id, id);
+      }
       await loadSuppliers();
     }
   };

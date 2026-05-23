@@ -4,18 +4,22 @@ import { Dashboard } from "./components/Dashboard";
 import { Herbs } from "./components/Herbs";
 import { Foods } from "./components/Foods";
 import { Suppliers } from "./components/Suppliers";
-import { HerbsAndFoods } from "./components/HerbsAndFoods";
 import { DailyJournal } from "./components/DailyJournal";
 import { DailyRoutine } from "./components/DailyRoutine";
 import { ConsistencyTracker } from "./components/ConsistencyTracker";
 import { TestingTracker } from "./components/TestingTracker";
 import { OutbreakTracker } from "./components/OutbreakTracker";
 import { Settings } from "./components/Settings";
-import { Activity, Leaf, BookOpen, Calendar, Stethoscope, ClipboardList, AlertCircle, Settings as SettingsIcon, Pill, Store, Apple } from "lucide-react";
+import { Auth } from "./components/Auth";
+import { SyncStatus } from "./components/SyncStatus";
+import { AuthProvider } from "./stores/AuthProvider";
+import { Activity, BookOpen, Calendar, Stethoscope, ClipboardList, AlertCircle, Settings as SettingsIcon, Pill, Store, Apple } from "lucide-react";
 import { autoMigrate } from "./lib/migration";
+import { Toaster } from "sonner";
 
-export default function App() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     // Auto-migrate localStorage data to IndexedDB on first load
@@ -27,8 +31,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <header className="mb-8 flex items-center justify-center">
+        <header className="mb-8 flex items-center justify-between">
           <img src="/Transparent Logo.svg" alt="Heal From It" style={{ width: '400px', height: 'auto' }} />
+          <SyncStatus onSignInClick={() => setShowAuthModal(true)} />
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -115,7 +120,65 @@ export default function App() {
             <Settings />
           </TabsContent>
         </Tabs>
+
+        {showAuthModal && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onClick={() => setShowAuthModal(false)}
+          >
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '12px',
+                padding: '32px',
+                width: '100%',
+                maxWidth: '420px',
+                margin: '0 16px',
+                boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowAuthModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: '#6b7280'
+                }}
+              >
+                ✕
+              </button>
+              <Auth onSuccess={() => setShowAuthModal(false)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+      <Toaster />
+    </AuthProvider>
   );
 }

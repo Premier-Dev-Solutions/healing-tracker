@@ -8,15 +8,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
-import { 
+import {
   getDailyRoutineLogNew,
   saveDailyRoutineLogNew,
-  getHerbsFoods,
+  getHerbs,
   type DailyRoutineLogNew,
   type PillIntake,
   type HerbTeaIntake,
   type FoodIntake,
-  type HerbFood
+  type Herb
 } from "../lib/storage";
 import { Plus, Trash2, Pill, Coffee, Apple, Calendar, ChevronLeft, ChevronRight, AlertTriangle, Info } from "lucide-react";
 
@@ -25,7 +25,7 @@ export function DailyRoutine() {
   const [dailyLog, setDailyLog] = useState<DailyRoutineLogNew | null>(null);
   const [fasting, setFasting] = useState<boolean>(false);
   const [fastingHours, setFastingHours] = useState<string>("");
-  const [herbsCatalog, setHerbsCatalog] = useState<HerbFood[]>([]);
+  const [herbsCatalog, setHerbsCatalog] = useState<Herb[]>([]);
 
   // Pill state
   const [isPillDialogOpen, setIsPillDialogOpen] = useState(false);
@@ -59,8 +59,8 @@ export function DailyRoutine() {
   }, [selectedDate]);
 
   const loadHerbsCatalog = async () => {
-    const allItems = await getHerbsFoods();
-    setHerbsCatalog(allItems.filter(item => item.type === 'herb'));
+    const herbs = await getHerbs();
+    setHerbsCatalog(herbs);
   };
 
   const loadDailyLog = async (date: string) => {
@@ -216,27 +216,33 @@ export function DailyRoutine() {
 
   const checkHerbRequirements = () => {
     if (!dailyLog) return [];
-    
+
     const warnings: string[] = [];
-    
+
     herbsCatalog.forEach(herb => {
-      if (herb.dailyServingRequirement) {
-        const count = dailyLog.herbsTeas.filter(h => 
-          h.whatWasInIt.toLowerCase().includes(herb.name.toLowerCase()) ||
-          h.ingredients.some(i => i.name.toLowerCase().includes(herb.name.toLowerCase()))
-        ).length;
-        
-        if (count < herb.dailyServingRequirement) {
-          warnings.push(`${herb.name}: ${count}/${herb.dailyServingRequirement} servings (need ${herb.dailyServingRequirement - count} more)`);
+      if (herb.dailyAmount) {
+        // Parse daily requirement from string like "3 Cups Daily" or "2 servings daily"
+        const match = herb.dailyAmount.match(/(\d+)/);
+        const requiredServings = match ? parseInt(match[1]) : 0;
+
+        if (requiredServings > 0) {
+          const count = dailyLog.herbsTeas.filter(h =>
+            h.whatWasInIt.toLowerCase().includes(herb.name.toLowerCase()) ||
+            h.ingredients.some(i => i.name.toLowerCase().includes(herb.name.toLowerCase()))
+          ).length;
+
+          if (count < requiredServings) {
+            warnings.push(`${herb.name}: ${count}/${requiredServings} servings (need ${requiredServings - count} more)`);
+          }
         }
       }
     });
-    
+
     return warnings;
   };
 
-  const getMatchingHerb = (herbName: string): HerbFood | undefined => {
-    return herbsCatalog.find(herb => 
+  const getMatchingHerb = (herbName: string): Herb | undefined => {
+    return herbsCatalog.find(herb =>
       herbName.toLowerCase().includes(herb.name.toLowerCase())
     );
   };
@@ -540,17 +546,17 @@ export function DailyRoutine() {
                             {matchedHerb.preparationInstructions && (
                               <p className="text-xs mb-2">{matchedHerb.preparationInstructions}</p>
                             )}
-                            {matchedHerb.servingSizePerServing && (
-                              <p className="text-xs mb-1">Serving Size: {matchedHerb.servingSizePerServing}</p>
+                            {matchedHerb.serving && (
+                              <p className="text-xs mb-1">Serving Size: {matchedHerb.serving}</p>
                             )}
-                            {matchedHerb.dailyServingRequirement && (
+                            {matchedHerb.dailyAmount && (
                               <p className="text-xs text-blue-600">
-                                Required: {matchedHerb.dailyServingRequirement} servings per day
+                                Required: {matchedHerb.dailyAmount}
                               </p>
                             )}
-                            {matchedHerb.purchases.length > 0 && matchedHerb.purchases[matchedHerb.purchases.length - 1].source && (
+                            {matchedHerb.supplier && (
                               <p className="text-xs mt-1 text-gray-600">
-                                Last purchased from: {matchedHerb.purchases[matchedHerb.purchases.length - 1].source}
+                                Supplier: {matchedHerb.supplier}
                               </p>
                             )}
                           </AlertDescription>

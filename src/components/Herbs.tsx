@@ -10,7 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./ui/badge";
 import { getHerbs, saveHerb, deleteHerb, type Herb, type Purchase } from "../lib/storage";
 import { Plus, Trash2, Edit, ShoppingCart, Upload, Download, Grid, Table, Search, X } from "lucide-react";
-import { importFile } from "../lib/csvParser";
+import { importFile, generateCSVTemplate } from "../lib/csvParser";
+import { useAuth } from "../stores/authStore";
+import { syncAll, syncDeleteHerb } from "../lib/sync";
+import { toast } from "sonner";
 
 /**
  * HERBS COMPONENT - Step by Step
@@ -19,6 +22,9 @@ import { importFile } from "../lib/csvParser";
  */
 
 export function Herbs() {
+  // Auth state
+  const { user } = useAuth();
+
   // ============================================
   // STEP 1: STATE - Data that can change
   // ============================================
@@ -217,7 +223,7 @@ export function Herbs() {
   const handleSave = async () => {
     // Validation - make sure name is filled
     if (!name.trim()) {
-      alert("Please enter a product name");
+      toast.error("Please enter a product name");
       return;
     }
 
@@ -257,6 +263,9 @@ export function Herbs() {
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this herb?")) {
       await deleteHerb(id);
+      if (user) {
+        await syncDeleteHerb(user.id, id);
+      }
       await loadHerbs();
     }
   };
@@ -266,41 +275,7 @@ export function Herbs() {
    * Creates a CSV file with headers and sample data
    */
   const downloadTemplate = () => {
-    const headers = [
-      'Product',
-      'Supplier',
-      'Ingredients',
-      'Serving',
-      'Daily Amount',
-      'Benefits',
-      'Category',
-      'Sub Category',
-      'Supplement Type',
-      'Description',
-      'Preparation'
-    ];
-
-    const sampleRow = [
-      'Una Del Gato',
-      'Bolingo Balance',
-      'Cat\'s Claw Bark',
-      '2-4 oz',
-      '3 cups daily',
-      'Immune support, anti-inflammatory',
-      'Herbal Tonic',
-      'Immune Support',
-      'herb',
-      'Traditional Amazonian herb known for immune system support',
-      'Boil 1-2 tablespoons with 2 cups of spring water for 25 minutes, steep for 10 minutes'
-    ];
-
-    // Create CSV content
-    const csvContent = [
-      headers.join(','),
-      sampleRow.map(cell => `"${cell}"`).join(',')
-    ].join('\n');
-
-    // Create blob and download
+    const csvContent = generateCSVTemplate();
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -329,66 +304,85 @@ export function Herbs() {
 
       let addedCount = 0;
       let updatedCount = 0;
+      let failedCount = 0;
 
       for (const item of importedData) {
-        // Check if herb already exists by name (case-insensitive)
-        const existingHerb = currentHerbs.find(
-          h => h.name.toLowerCase() === item.name.toLowerCase()
-        );
+        try {
+          // Check if herb already exists by name (case-insensitive)
+          const existingHerb = currentHerbs.find(
+            h => h.name.toLowerCase() === item.name.toLowerCase()
+          );
 
-        if (existingHerb) {
-          // UPDATE existing herb - preserve ID, dateAdded, and purchases
-          const updatedHerb: Herb = {
-            id: existingHerb.id,
-            name: item.name,
-            supplementType: (item.supplementType as Herb['supplementType']) || existingHerb.supplementType,
-            category: item.category || existingHerb.category,
-            secondaryCategory: item.secondaryCategory || existingHerb.secondaryCategory,
-            benefits: item.benefits || existingHerb.benefits,
-            description: item.description || existingHerb.description,
-            ingredients: item.ingredients || existingHerb.ingredients,
-            supplier: item.supplier || existingHerb.supplier,
-            preparationInstructions: item.preparationInstructions || existingHerb.preparationInstructions,
-            serving: item.servingSize || existingHerb.serving,
-            dailyAmount: item.dailyServingRequirement?.toString() || existingHerb.dailyAmount,
-            dateAdded: existingHerb.dateAdded, // Keep original date
-            purchases: existingHerb.purchases // Preserve purchase history
-          };
+          if (existingHerb) {
+            // UPDATE existing herb - preserve ID, dateAdded, and purchases
+            const updatedHerb: Herb = {
+              id: existingHerb.id,
+              name: item.name,
+              supplementType: (item.supplementType as Herb['supplementType']) || existingHerb.supplementType,
+              category: item.category || existingHerb.category,
+              secondaryCategory: item.secondaryCategory || existingHerb.secondaryCategory,
+              benefits: item.benefits || existingHerb.benefits,
+              description: item.description || existingHerb.description,
+              ingredients: item.ingredients || existingHerb.ingredients,
+              supplier: item.supplier || existingHerb.supplier,
+              preparationInstructions: item.preparationInstructions || existingHerb.preparationInstructions,
+              serving: item.servingSize || existingHerb.serving,
+              dailyAmount: item.dailyServingRequirement?.toString() || existingHerb.dailyAmount,
+              dateAdded: existingHerb.dateAdded, // Keep original date
+              purchases: existingHerb.purchases // Preserve purchase history
+            };
 
-          await saveHerb(updatedHerb);
-          updatedCount++;
-        } else {
-          // ADD new herb
-          const newHerb: Herb = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            name: item.name,
-            supplementType: (item.supplementType as Herb['supplementType']) || 'herb',
-            category: item.category || '',
-            secondaryCategory: item.secondaryCategory,
-            benefits: item.benefits || '',
-            description: item.description,
-            ingredients: item.ingredients,
-            supplier: item.supplier,
-            preparationInstructions: item.preparationInstructions,
-            serving: item.servingSize,
-            dailyAmount: item.dailyServingRequirement?.toString(),
-            dateAdded: new Date().toISOString(),
-            purchases: []
-          };
+            await saveHerb(updatedHerb);
+            updatedCount++;
+          } else {
+            // ADD new herb with proper UUID
+            const newHerb: Herb = {
+              id: crypto.randomUUID(),
+              name: item.name,
+              supplementType: (item.supplementType as Herb['supplementType']) || 'herb',
+              category: item.category || '',
+              secondaryCategory: item.secondaryCategory,
+              benefits: item.benefits || '',
+              description: item.description,
+              ingredients: item.ingredients,
+              supplier: item.supplier,
+              preparationInstructions: item.preparationInstructions,
+              serving: item.servingSize,
+              dailyAmount: item.dailyServingRequirement?.toString(),
+              dateAdded: new Date().toISOString(),
+              purchases: []
+            };
 
-          await saveHerb(newHerb);
-          addedCount++;
+            await saveHerb(newHerb);
+            addedCount++;
+          }
+        } catch (err) {
+          console.error('Error saving herb:', err);
+          failedCount++;
         }
       }
 
       await loadHerbs();
-      alert(`Import complete!\n\nAdded: ${addedCount} new herbs\nUpdated: ${updatedCount} existing herbs`);
+
+      // Show import success toast
+      toast.success(`Import complete — Added: ${addedCount} | Updated: ${updatedCount} | Failed: ${failedCount}`);
+
+      // Trigger sync if user is authenticated
+      if (user) {
+        try {
+          await syncAll(user.id);
+          toast.success('Synced to cloud');
+        } catch (syncErr) {
+          console.error('Sync error:', syncErr);
+          toast.error('Sync failed — please try again');
+        }
+      }
 
       // Reset file input
       event.target.value = '';
     } catch (error) {
       console.error('Import error:', error);
-      alert(`Failed to import file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error('Import failed — please check your file format');
     }
   };
 
@@ -397,7 +391,7 @@ export function Herbs() {
    */
   const addPurchase = () => {
     if (!purchaseDate || !purchaseQuantity) {
-      alert("Please enter date and quantity");
+      toast.error("Please enter date and quantity");
       return;
     }
 
@@ -445,10 +439,10 @@ export function Herbs() {
         await saveHerb(herb);
       }
       await loadHerbs();
-      alert('All changes saved successfully!');
+      toast.success('All changes saved successfully!');
     } catch (error) {
       console.error('Bulk save error:', error);
-      alert('Failed to save changes');
+      toast.error('Failed to save changes');
     }
   };
 
@@ -626,19 +620,20 @@ export function Herbs() {
   return (
     <div className="space-y-6">
       {/* Header Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold">Herbal Inventory</h2>
           <p className="text-gray-600">Manage your herbal supplements</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {/* View Toggle */}
           <div className="flex gap-1 border rounded-md p-1">
             <Button
               variant={viewMode === "cards" ? "default" : "ghost"}
               size="sm"
               onClick={() => setViewMode("cards")}
+              title="Card View"
             >
               <Grid className="w-4 h-4" />
             </Button>
@@ -646,18 +641,19 @@ export function Herbs() {
               variant={viewMode === "table" ? "default" : "ghost"}
               size="sm"
               onClick={() => setViewMode("table")}
+              title="Table View"
             >
               <Table className="w-4 h-4" />
             </Button>
           </div>
 
-          <Button variant="outline" onClick={downloadTemplate}>
-            <Download className="w-4 h-4 mr-2" />
-            Download Template
+          <Button variant="outline" onClick={downloadTemplate} className="flex-1 md:flex-initial" title="Download CSV Template">
+            <Download className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Download Template</span>
           </Button>
-          <Button variant="outline" onClick={() => document.getElementById('herb-import')?.click()}>
-            <Upload className="w-4 h-4 mr-2" />
-            Import CSV/XLSX
+          <Button variant="outline" onClick={() => document.getElementById('herb-import')?.click()} className="flex-1 md:flex-initial" title="Import CSV/XLSX">
+            <Upload className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Import CSV/XLSX</span>
           </Button>
           <input
             id="herb-import"
@@ -669,10 +665,49 @@ export function Herbs() {
           <Button onClick={() => {
             resetForm();
             setIsAddDialogOpen(true);
-          }}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Herb
+          }} className="flex-1 md:flex-initial">
+            <Plus className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Add Herb</span>
           </Button>
+        </div>
+      </div>
+
+      {/* Slim Stats Bar */}
+      <div className="py-3 border-y border-gray-200">
+        <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-3 md:gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Total:</span>
+            <span className="text-lg font-bold text-gray-900">{metrics.totalHerbs}</span>
+          </div>
+          <div className="hidden md:block h-6 w-px bg-gray-200"></div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Herbs:</span>
+            <span className="text-lg font-bold text-gray-900">{herbs.filter(h => h.supplementType === 'herb').length}</span>
+          </div>
+          <div className="hidden md:block h-6 w-px bg-gray-200"></div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Suppliers:</span>
+            <span className="text-lg font-bold text-gray-900">{metrics.uniqueSuppliers}</span>
+          </div>
+          <div className="hidden md:block h-6 w-px bg-gray-200"></div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Categories:</span>
+            <span className="text-lg font-bold text-gray-900">{metrics.uniqueCategories}</span>
+          </div>
+          <div className="hidden md:block h-6 w-px bg-gray-200"></div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Invested:</span>
+            <span className="text-lg font-bold text-gray-900">${metrics.totalInvested.toFixed(0)}</span>
+          </div>
+          {(searchQuery || filterType !== "all" || filterSupplier !== "all" || filterStock !== "all") && (
+            <>
+              <div className="hidden md:block h-6 w-px bg-gray-200"></div>
+              <div className="flex items-center gap-2 col-span-2 md:col-span-1">
+                <span className="text-sm text-gray-500">Showing:</span>
+                <span className="text-lg font-bold text-green-600">{filteredHerbs.length} of {metrics.totalHerbs}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -690,8 +725,8 @@ export function Herbs() {
             </div>
 
             {/* Filters Row */}
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex-1 min-w-[200px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
                 <Select value={filterType} onValueChange={setFilterType}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Types" />
@@ -710,7 +745,7 @@ export function Herbs() {
                 </Select>
               </div>
 
-              <div className="flex-1 min-w-[200px]">
+              <div>
                 <Select value={filterSupplier} onValueChange={setFilterSupplier}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Suppliers" />
@@ -726,7 +761,7 @@ export function Herbs() {
                 </Select>
               </div>
 
-              <div className="flex-1 min-w-[200px]">
+              <div>
                 <Select value={filterStock} onValueChange={setFilterStock}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Stock Levels" />
@@ -741,7 +776,7 @@ export function Herbs() {
                 </Select>
               </div>
 
-              <div className="flex-1 min-w-[200px]">
+              <div>
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sort By" />
@@ -756,22 +791,25 @@ export function Herbs() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {(searchQuery || filterType !== "all" || filterSupplier !== "all" || filterStock !== "all") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setFilterType("all");
-                    setFilterSupplier("all");
-                    setFilterStock("all");
-                  }}
-                >
-                  Clear Filters
-                </Button>
-              )}
             </div>
+
+            {/* Clear Filters Button */}
+            {(searchQuery || filterType !== "all" || filterSupplier !== "all" || filterStock !== "all") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setFilterType("all");
+                  setFilterSupplier("all");
+                  setFilterStock("all");
+                }}
+                className="w-full md:w-auto"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Clear Filters
+              </Button>
+            )}
 
             {/* Results Counter */}
             <div className="text-sm text-gray-600">
@@ -824,51 +862,6 @@ export function Herbs() {
           </Card>
         );
       })()}
-
-      {/* Enhanced Metrics Dashboard - Hidden when searching/filtering */}
-      {!searchQuery && filterType === "all" && filterSupplier === "all" && filterStock === "all" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Inventory Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{metrics.totalHerbs}</div>
-                <div className="text-xs text-gray-600 mt-1">Total Herbs</div>
-              </div>
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">{metrics.mostCommonType?.count || 0}</div>
-                <div className="text-xs text-gray-600 mt-1">{metrics.mostCommonType?.type || 'N/A'}</div>
-              </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">${metrics.totalInvested.toFixed(0)}</div>
-                <div className="text-xs text-gray-600 mt-1">Total Invested</div>
-              </div>
-              <div className="text-center p-3 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">{metrics.uniqueSuppliers}</div>
-                <div className="text-xs text-gray-600 mt-1">Suppliers</div>
-              </div>
-              <div className="text-center p-3 bg-teal-50 rounded-lg">
-                <div className="text-2xl font-bold text-teal-600">{metrics.herbsWithPurchases}</div>
-                <div className="text-xs text-gray-600 mt-1">With Purchases</div>
-              </div>
-              <div className="text-center p-3 bg-indigo-50 rounded-lg">
-                <div className="text-2xl font-bold text-indigo-600">{metrics.uniqueCategories}</div>
-                <div className="text-xs text-gray-600 mt-1">Categories</div>
-              </div>
-              <div className="text-center p-3 bg-pink-50 rounded-lg">
-                <div className="text-2xl font-bold text-pink-600">{metrics.recentPurchases}</div>
-                <div className="text-xs text-gray-600 mt-1">Recent (30d)</div>
-              </div>
-              <div className="text-center p-3 bg-amber-50 rounded-lg">
-                <div className="text-2xl font-bold text-amber-600">{metrics.totalPurchases}</div>
-                <div className="text-xs text-gray-600 mt-1">All Purchases</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* CARD VIEW */}
       {viewMode === "cards" && (
@@ -972,13 +965,13 @@ export function Herbs() {
                     <th className="p-2 text-left font-medium border-r" style={{width: '8%'}}>Type</th>
                     <th className="p-2 text-left font-medium border-r" style={{width: '12%'}}>Supplier</th>
                     <th className="p-2 text-left font-medium border-r" style={{width: '12%'}}>Category</th>
-                    <th className="p-2 text-left font-medium border-r" style={{width: '10%'}}>Sub Category</th>
+                    <th className="hidden md:table-cell p-2 text-left font-medium border-r" style={{width: '10%'}}>Sub Category</th>
                     <th className="p-2 text-left font-medium border-r" style={{width: '8%'}}>Serving</th>
                     <th className="p-2 text-left font-medium border-r" style={{width: '8%'}}>Daily Amount</th>
                     <th className="p-2 text-left font-medium border-r" style={{width: '9%'}}>Benefits</th>
-                    <th className="p-2 text-left font-medium border-r" style={{width: '9%'}}>Ingredients</th>
-                    <th className="p-2 text-left font-medium border-r" style={{width: '9%'}}>Description</th>
-                    <th className="p-2 text-left font-medium border-r" style={{width: '9%'}}>Preparation</th>
+                    <th className="hidden md:table-cell p-2 text-left font-medium border-r" style={{width: '9%'}}>Ingredients</th>
+                    <th className="hidden md:table-cell p-2 text-left font-medium border-r" style={{width: '9%'}}>Description</th>
+                    <th className="hidden md:table-cell p-2 text-left font-medium border-r" style={{width: '9%'}}>Preparation</th>
                     <th className="p-2 text-center font-medium bg-gray-100" style={{width: '3%'}}>Actions</th>
                   </tr>
                 </thead>
@@ -1027,7 +1020,7 @@ export function Herbs() {
                           className="w-full h-9 px-2 py-1 text-sm"
                         />
                       </td>
-                      <td className="p-2 border-r">
+                      <td className="hidden md:table-cell p-2 border-r">
                         <Input
                           value={herb.secondaryCategory || ''}
                           onChange={(e) => updateBulkEditCell(herb.id, 'secondaryCategory', e.target.value)}
@@ -1053,17 +1046,17 @@ export function Herbs() {
                           {herb.benefits || <span className="text-gray-400">Click to edit...</span>}
                         </div>
                       </td>
-                      <td className="p-2 border-r cursor-pointer hover:bg-gray-100" onClick={() => openTextEditor(herb.id, 'ingredients', herb.ingredients || '')}>
+                      <td className="hidden md:table-cell p-2 border-r cursor-pointer hover:bg-gray-100" onClick={() => openTextEditor(herb.id, 'ingredients', herb.ingredients || '')}>
                         <div className="text-sm truncate" title={herb.ingredients}>
                           {herb.ingredients || <span className="text-gray-400">Click to edit...</span>}
                         </div>
                       </td>
-                      <td className="p-2 border-r cursor-pointer hover:bg-gray-100" onClick={() => openTextEditor(herb.id, 'description', herb.description || '')}>
+                      <td className="hidden md:table-cell p-2 border-r cursor-pointer hover:bg-gray-100" onClick={() => openTextEditor(herb.id, 'description', herb.description || '')}>
                         <div className="text-sm truncate" title={herb.description}>
                           {herb.description || <span className="text-gray-400">Click to edit...</span>}
                         </div>
                       </td>
-                      <td className="p-2 border-r cursor-pointer hover:bg-gray-100" onClick={() => openTextEditor(herb.id, 'preparationInstructions', herb.preparationInstructions || '')}>
+                      <td className="hidden md:table-cell p-2 border-r cursor-pointer hover:bg-gray-100" onClick={() => openTextEditor(herb.id, 'preparationInstructions', herb.preparationInstructions || '')}>
                         <div className="text-sm truncate" title={herb.preparationInstructions}>
                           {herb.preparationInstructions || <span className="text-gray-400">Click to edit...</span>}
                         </div>

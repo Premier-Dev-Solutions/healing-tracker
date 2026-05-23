@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Alert, AlertDescription } from "./ui/alert";
-import { Download, Upload, Trash2, Database, CheckCircle, AlertCircle } from "lucide-react";
+import { Download, Upload, Trash2, Database, CheckCircle, AlertCircle, FileText } from "lucide-react";
 import * as idb from "../lib/indexedDB";
+import { generateCSVTemplate } from "../lib/csvParser";
 
 export function Settings() {
   const [stats, setStats] = useState<Record<string, number>>({});
@@ -110,6 +111,26 @@ export function Settings() {
     return Object.values(stats).reduce((sum, count) => sum + count, 0);
   };
 
+  const handleDownloadTemplate = () => {
+    try {
+      const csvContent = generateCSVTemplate();
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'herb-inventory-template.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setMessage({ type: 'success', text: 'CSV template downloaded successfully!' });
+    } catch (error) {
+      console.error('Template download failed:', error);
+      setMessage({ type: 'error', text: 'Failed to download template. Please try again.' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -145,8 +166,16 @@ export function Settings() {
             </div>
             <div className="border-t pt-2 space-y-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">Herbs & Foods:</span>
-                <span>{stats[idb.STORES.HERBS_FOODS] || 0}</span>
+                <span className="text-gray-600">Herbs:</span>
+                <span>{stats[idb.STORES.HERBS] || 0}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Foods:</span>
+                <span>{stats[idb.STORES.FOODS] || 0}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Suppliers:</span>
+                <span>{stats[idb.STORES.SUPPLIERS] || 0}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">Journal Entries:</span>
@@ -211,6 +240,28 @@ export function Settings() {
 
             <p className="text-xs text-gray-500 mt-2">
               Tip: Export your data regularly to keep a backup of your healing journey.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* CSV Template Download */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Herb Inventory Template</CardTitle>
+            <CardDescription>Download CSV template for bulk herb import</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              onClick={handleDownloadTemplate}
+              className="w-full"
+              variant="outline"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Download CSV Template
+            </Button>
+
+            <p className="text-xs text-gray-500">
+              Use this template to bulk import herbs. The file includes column descriptions and example entries to guide you.
             </p>
           </CardContent>
         </Card>

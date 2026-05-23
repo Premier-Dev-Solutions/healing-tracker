@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { getHerbsFoods, getJournalEntries, type JournalEntry } from "../lib/storage";
+import { getHerbs, getFoods, getJournalEntries, type JournalEntry } from "../lib/storage";
 import { Activity, Leaf, Moon, TrendingUp, Zap } from "lucide-react";
 import { Progress } from "./ui/progress";
 
@@ -21,8 +21,12 @@ export function Dashboard() {
   }, []);
 
   const calculateStats = async () => {
-    const herbsFoods = await getHerbsFoods();
-    const entries = await getJournalEntries();
+    const [herbs, foods, entries] = await Promise.all([
+      getHerbs(),
+      getFoods(),
+      getJournalEntries()
+    ]);
+    const totalHerbsFoods = herbs.length + foods.length;
     
     // Get last 7 days of entries
     const sevenDaysAgo = new Date();
@@ -69,7 +73,7 @@ export function Dashboard() {
     const consistencyRate = (recentEntries.length / 7) * 100;
 
     setStats({
-      totalHerbsFoods: herbsFoods.length,
+      totalHerbsFoods,
       recentEntries: recentEntries.length,
       avgSleep: Math.round(avgSleep * 10) / 10,
       avgStress: Math.round(avgStress * 10) / 10,

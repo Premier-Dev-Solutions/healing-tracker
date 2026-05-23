@@ -1,5 +1,5 @@
-// CSV and XLSX Parser for importing herb/food inventory
-import { HerbFood } from './storage';
+// CSV and XLSX Parser for importing herb inventory
+import { Herb } from './storage';
 import * as XLSX from 'xlsx';
 
 export interface ImportOptions {
@@ -69,15 +69,15 @@ const parseCSVLine = (line: string): string[] => {
 };
 
 /**
- * Map CSV row to HerbFood object
+ * Map CSV row to Herb object
  */
-export const mapCSVToHerbFood = (row: Record<string, string>): HerbFood | null => {
+export const mapCSVToHerb = (row: Record<string, string>): Herb | null => {
   const product = row['Product'] || row['product'] || '';
   if (!product) return null; // Skip rows without product name
 
   // Determine type based on Supplement Type
   const supplementType = (row['Supplement Type'] || '').toLowerCase().trim();
-  let type: 'herb' | 'food' | 'tonic' | 'herb bundle' | 'herb blend' | 'tea bag' | 'pills' | 'topical' | 'supplement' = 'herb';
+  let type: 'herb' | 'tonic' | 'herb bundle' | 'herb blend' | 'tea bag' | 'pills' | 'gel' | 'topical' = 'herb';
 
   // Map supplement type to our type values
   if (supplementType === 'tonic') {
@@ -90,18 +90,16 @@ export const mapCSVToHerbFood = (row: Record<string, string>): HerbFood | null =
     type = 'tea bag';
   } else if (supplementType === 'pills') {
     type = 'pills';
+  } else if (supplementType === 'gel') {
+    type = 'gel';
   } else if (supplementType === 'topical') {
     type = 'topical';
-  } else if (supplementType.includes('food') || (row['Lysine'] && row['Arginine'])) {
-    type = 'food';
-  } else if (supplementType === 'supplement') {
-    type = 'supplement';
   } else {
     type = 'herb'; // default to herb
   }
 
-  const item: HerbFood = {
-    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+  const item: Herb = {
+    id: crypto.randomUUID(),
     name: product,
     supplementType: type,
     category: row['Category'] || 'Uncategorized',
@@ -109,34 +107,13 @@ export const mapCSVToHerbFood = (row: Record<string, string>): HerbFood | null =
     benefits: row['Benefits'] || '',
     description: row['Description'] || undefined,
     ingredients: row['Ingredients'] || undefined,
+    supplier: row['Supplier'] || undefined,
+    preparationInstructions: row['Preparation'] || undefined,
+    serving: row['Serving'] || undefined,
+    dailyAmount: row['Daily Amount'] || undefined,
     dateAdded: new Date().toISOString(),
     purchases: [],
-    supplier: row['Supplier'] || undefined,
   };
-
-  // Add herb-specific fields
-  if (type === 'herb') {
-    item.preparationInstructions = row['Preparation'] || undefined;
-
-    // Parse daily amount (e.g., "3 Cups Daily" -> 3)
-    const dailyAmount = row['Daily Amount'] || '';
-    const match = dailyAmount.match(/(\d+)/);
-    if (match) {
-      item.dailyServingRequirement = parseInt(match[1]);
-    }
-
-    item.servingSizePerServing = row['Serving'] || undefined;
-  }
-
-  // Add food-specific fields (amino acids)
-  if (type === 'food') {
-    const lysine = parseFloat(row['Lysine'] || '0');
-    const arginine = parseFloat(row['Arginine'] || '0');
-
-    if (lysine > 0) item.lysine = lysine;
-    if (arginine > 0) item.arginine = arginine;
-    item.servingSize = row['Serving Size'] || undefined;
-  }
 
   return item;
 };
@@ -184,14 +161,14 @@ export const parseXLSX = async (file: File): Promise<Record<string, string>[]> =
 };
 
 /**
- * Import CSV and convert to HerbFood array
+ * Import CSV and convert to Herb array
  */
-export const importCSV = (csvText: string): HerbFood[] => {
+export const importCSV = (csvText: string): Herb[] => {
   const rows = parseCSV(csvText);
-  const items: HerbFood[] = [];
+  const items: Herb[] = [];
 
   for (const row of rows) {
-    const item = mapCSVToHerbFood(row);
+    const item = mapCSVToHerb(row);
     if (item) {
       items.push(item);
     }
@@ -201,14 +178,14 @@ export const importCSV = (csvText: string): HerbFood[] => {
 };
 
 /**
- * Import XLSX file and convert to HerbFood array
+ * Import XLSX file and convert to Herb array
  */
-export const importXLSX = async (file: File): Promise<HerbFood[]> => {
+export const importXLSX = async (file: File): Promise<Herb[]> => {
   const rows = await parseXLSX(file);
-  const items: HerbFood[] = [];
+  const items: Herb[] = [];
 
   for (const row of rows) {
-    const item = mapCSVToHerbFood(row);
+    const item = mapCSVToHerb(row);
     if (item) {
       items.push(item);
     }
@@ -218,9 +195,9 @@ export const importXLSX = async (file: File): Promise<HerbFood[]> => {
 };
 
 /**
- * Import file (auto-detect CSV or XLSX) and convert to HerbFood array
+ * Import file (auto-detect CSV or XLSX) and convert to Herb array
  */
-export const importFile = async (file: File): Promise<HerbFood[]> => {
+export const importFile = async (file: File): Promise<Herb[]> => {
   const fileName = file.name.toLowerCase();
 
   if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
@@ -251,7 +228,21 @@ export const generateCSVTemplate = (): string => {
     'Preparation'
   ];
 
-  const example = [
+  const guidance = [
+    'Required - Name of herb/supplement',
+    'Where purchased from',
+    'What it contains',
+    '2/4 OZ | 30 Servings | 1 Block',
+    '3 cups daily | 2 capsules daily | 1 time',
+    'What it does',
+    'Main category',
+    'Additional category',
+    'herb | tonic | pills | tea bag | gel | topical | herb bundle | herb blend',
+    'Additional details',
+    'How to prepare/use'
+  ];
+
+  const example1 = [
     'Una Del Gato',
     'Bolingo Balance',
     'Una Del Gato',
@@ -260,10 +251,42 @@ export const generateCSVTemplate = (): string => {
     'Kills Cancer Cells, Boost Immune System',
     'Eliminate Virus',
     'Immune Support',
-    'Herb',
+    'herb',
     'Cats Claw extract for immune support',
     'Boil 1 cup of spring water and 1 tablespoon'
   ];
 
-  return headers.join(',') + '\n' + example.join(',');
+  const example2 = [
+    'Seamoss Gel',
+    'Local Supplier',
+    'Irish Seamoss, Spring Water',
+    '1 Block',
+    '2 tablespoons daily',
+    'Nutrient Dense, Thyroid Support, Energy Boost',
+    'Immune Boost',
+    'Mineral Support',
+    'gel',
+    'Wild harvested seamoss gel',
+    'Take 2 tablespoons in morning smoothie or tea'
+  ];
+
+  const example3 = [
+    'Elderberry Syrup',
+    'Wholesome Herbs',
+    'Elderberry, Honey, Ginger, Cinnamon',
+    '8 oz',
+    '1 tablespoon daily',
+    'Antiviral, Immune Support, Cold & Flu Prevention',
+    'Immune Boost',
+    'Respiratory Health',
+    'tonic',
+    'Concentrated elderberry syrup',
+    'Take 1 tablespoon daily, can increase to 3x daily when sick'
+  ];
+
+  return headers.join(',') + '\n' +
+         guidance.join(',') + '\n' +
+         example1.join(',') + '\n' +
+         example2.join(',') + '\n' +
+         example3.join(',');
 };

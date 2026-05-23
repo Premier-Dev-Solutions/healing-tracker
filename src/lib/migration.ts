@@ -4,7 +4,6 @@ import * as idb from './indexedDB';
 const MIGRATION_KEY = 'migrated_to_indexeddb';
 
 interface LocalStorageData {
-  herbsFoods?: any[];
   journalEntries?: any[];
   testingReminders?: any[];
   herbInventory?: any[];
@@ -30,16 +29,6 @@ const markMigrationComplete = (): void => {
  */
 const extractLocalStorageData = (): LocalStorageData => {
   const data: LocalStorageData = {};
-
-  // Get herbs & foods
-  const herbsFoodsStr = localStorage.getItem('herbsFoods');
-  if (herbsFoodsStr) {
-    try {
-      data.herbsFoods = JSON.parse(herbsFoodsStr);
-    } catch (e) {
-      console.error('Failed to parse herbsFoods:', e);
-    }
-  }
 
   // Get journal entries
   const journalEntriesStr = localStorage.getItem('journalEntries');
@@ -100,7 +89,6 @@ export const countLocalStorageItems = (): number => {
   const data = extractLocalStorageData();
   let count = 0;
 
-  if (data.herbsFoods) count += data.herbsFoods.length;
   if (data.journalEntries) count += data.journalEntries.length;
   if (data.testingReminders) count += data.testingReminders.length;
   if (data.herbInventory) count += data.herbInventory.length;
@@ -126,18 +114,6 @@ export const migrateToIndexedDB = async (): Promise<{
 
     // Extract data from localStorage
     const data = extractLocalStorageData();
-
-    // Migrate herbs & foods
-    if (data.herbsFoods && data.herbsFoods.length > 0) {
-      try {
-        for (const item of data.herbsFoods) {
-          await idb.put(idb.STORES.HERBS_FOODS, item);
-          itemsMigrated++;
-        }
-      } catch (e) {
-        errors.push(`Failed to migrate herbs & foods: ${e}`);
-      }
-    }
 
     // Migrate journal entries
     if (data.journalEntries && data.journalEntries.length > 0) {
@@ -209,27 +185,21 @@ export const migrateToIndexedDB = async (): Promise<{
  * Auto-run migration on app startup if needed
  */
 export const autoMigrate = async (): Promise<void> => {
-  // Skip if already migrated
-  if (isMigrationComplete()) {
-    return;
-  }
+  // Migrate from localStorage to IndexedDB (if not already done)
+  if (!isMigrationComplete()) {
+    const itemCount = countLocalStorageItems();
+    if (itemCount > 0) {
+      console.log(`Found ${itemCount} items in localStorage. Starting migration...`);
+      const result = await migrateToIndexedDB();
 
-  // Check if there's data to migrate
-  const itemCount = countLocalStorageItems();
-  if (itemCount === 0) {
-    // No data to migrate, mark as complete
-    markMigrationComplete();
-    return;
-  }
-
-  console.log(`Found ${itemCount} items in localStorage. Starting migration...`);
-
-  const result = await migrateToIndexedDB();
-
-  if (result.success) {
-    console.log(`Migration completed successfully! ${result.itemsMigrated} items migrated.`);
-  } else {
-    console.error('Migration completed with errors:', result.errors);
-    console.log(`${result.itemsMigrated} items were migrated successfully.`);
+      if (result.success) {
+        console.log(`Migration completed successfully! ${result.itemsMigrated} items migrated.`);
+      } else {
+        console.error('Migration completed with errors:', result.errors);
+        console.log(`${result.itemsMigrated} items were migrated successfully.`);
+      }
+    } else {
+      markMigrationComplete();
+    }
   }
 };

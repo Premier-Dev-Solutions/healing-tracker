@@ -2,13 +2,12 @@
 // Provides better performance and larger storage capacity than localStorage
 
 const DB_NAME = 'HealingTrackerDB';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 // Store names
 export const STORES = {
-  HERBS_FOODS: 'herbsFoods', // Legacy - for backward compatibility
-  HERBS: 'herbs', // New - herbal supplements
-  FOODS: 'foods', // New - food items with nutrition
+  HERBS: 'herbs', // Herbal supplements
+  FOODS: 'foods', // Food items with nutrition
   JOURNAL_ENTRIES: 'journalEntries',
   TESTING_REMINDERS: 'testingReminders',
   DAILY_ROUTINES: 'dailyRoutines',
@@ -42,14 +41,14 @@ export const initDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
 
-      // Create object stores if they don't exist
-      if (!db.objectStoreNames.contains(STORES.HERBS_FOODS)) {
-        const herbsStore = db.createObjectStore(STORES.HERBS_FOODS, { keyPath: 'id' });
-        herbsStore.createIndex('supplementType', 'supplementType', { unique: false });
-        herbsStore.createIndex('dateAdded', 'dateAdded', { unique: false });
+      // Delete legacy herbsFoods store if upgrading from v4 or earlier
+      if (oldVersion <= 4 && db.objectStoreNames.contains('herbsFoods')) {
+        db.deleteObjectStore('herbsFoods');
       }
 
+      // Create object stores if they don't exist
       if (!db.objectStoreNames.contains(STORES.JOURNAL_ENTRIES)) {
         const journalStore = db.createObjectStore(STORES.JOURNAL_ENTRIES, { keyPath: 'id' });
         journalStore.createIndex('date', 'date', { unique: true });
