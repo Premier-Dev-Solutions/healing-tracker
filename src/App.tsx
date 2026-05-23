@@ -16,6 +16,7 @@ import { AuthProvider } from "./stores/AuthProvider";
 import { Activity, BookOpen, Calendar, Stethoscope, ClipboardList, AlertCircle, Settings as SettingsIcon, Pill, Store, Apple } from "lucide-react";
 import { autoMigrate } from "./lib/migration";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react";
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -179,6 +180,7 @@ export default function App() {
     <AuthProvider>
       <AppContent />
       <Toaster />
+      <Analytics />
     </AuthProvider>
   );
 }
