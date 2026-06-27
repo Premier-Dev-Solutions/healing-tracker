@@ -351,7 +351,7 @@ export function Foods() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const recentPurchases = foods.filter(food =>
-      food.purchases?.some(p => new Date(p.date) >= thirtyDaysAgo)
+      food.purchases?.some(p => new Date(p.date + 'T00:00:00') >= thirtyDaysAgo)
     ).length;
 
     // Total purchases

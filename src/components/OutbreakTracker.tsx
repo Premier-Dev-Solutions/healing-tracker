@@ -184,7 +184,7 @@ export function OutbreakTracker() {
   };
 
   const formatDateTime = (date: string, time?: string) => {
-    const d = new Date(date);
+    const d = new Date(date + 'T00:00:00');
     const formatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return time ? `${formatted} at ${time}` : formatted;
   };
@@ -413,7 +413,7 @@ export function OutbreakTracker() {
               {outbreaks.filter(o => {
                 const thirtyDaysAgo = new Date();
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                return new Date(o.startDate) >= thirtyDaysAgo;
+                return new Date(o.startDate + 'T00:00:00') >= thirtyDaysAgo;
               }).length}
             </div>
           </CardContent>

@@ -183,7 +183,7 @@ function AppContent() {
           )}
 
           <TabsContent value="dashboard">
-            <Dashboard />
+            <Dashboard onNavigate={(tab) => setActiveTab(tab)} />
           </TabsContent>
 
           <TabsContent value="herbs">

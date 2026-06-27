@@ -248,7 +248,7 @@ export function DailyRoutine() {
   };
 
   const changeDate = (days: number) => {
-    const newDate = new Date(selectedDate);
+    const newDate = new Date(selectedDate + 'T00:00:00');
     newDate.setDate(newDate.getDate() + days);
     setSelectedDate(newDate.toISOString().split('T')[0]);
   };
@@ -281,7 +281,7 @@ export function DailyRoutine() {
             <div className="text-center">
               <CardTitle className="flex items-center gap-2 justify-center">
                 <Calendar className="w-5 h-5" />
-                {new Date(selectedDate).toLocaleDateString('en-US', { 
+                {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
