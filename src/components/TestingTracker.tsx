@@ -32,7 +32,7 @@ export function TestingTracker() {
     const frequencyDays = parseInt(formData.get('frequency') as string);
     const startDate = formData.get('startDate') as string || new Date().toISOString().split('T')[0];
 
-    const nextDate = new Date(startDate);
+    const nextDate = new Date(startDate + 'T00:00:00');
     nextDate.setDate(nextDate.getDate() + frequencyDays);
 
     const reminder: TestingReminder = {
@@ -73,7 +73,7 @@ export function TestingTracker() {
   const getDaysUntil = (dateStr: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const targetDate = new Date(dateStr);
+    const targetDate = new Date(dateStr + 'T00:00:00');
     targetDate.setHours(0, 0, 0, 0);
     
     const diffTime = targetDate.getTime() - today.getTime();
@@ -206,7 +206,7 @@ export function TestingTracker() {
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="w-4 h-4 text-gray-500" />
                         <span className="text-gray-700">
-                          Next test: {new Date(reminder.nextTestDate).toLocaleDateString()}
+                          Next test: {new Date(reminder.nextTestDate + 'T00:00:00').toLocaleDateString()}
                         </span>
                       </div>
                       <div className="text-sm text-gray-600">
@@ -220,7 +220,7 @@ export function TestingTracker() {
                       </div>
                       {reminder.lastTestDate && (
                         <div className="text-xs text-gray-500">
-                          Last completed: {new Date(reminder.lastTestDate).toLocaleDateString()}
+                          Last completed: {new Date(reminder.lastTestDate + 'T00:00:00').toLocaleDateString()}
                         </div>
                       )}
                     </div>
@@ -281,7 +281,7 @@ export function TestingTracker() {
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="w-4 h-4 text-gray-500" />
                         <span className="text-gray-700">
-                          Next test: {new Date(reminder.nextTestDate).toLocaleDateString()}
+                          Next test: {new Date(reminder.nextTestDate + 'T00:00:00').toLocaleDateString()}
                         </span>
                       </div>
                       <div className="text-sm text-gray-600">
@@ -289,7 +289,7 @@ export function TestingTracker() {
                       </div>
                       {reminder.lastTestDate && (
                         <div className="text-xs text-gray-500">
-                          Last completed: {new Date(reminder.lastTestDate).toLocaleDateString()}
+                          Last completed: {new Date(reminder.lastTestDate + 'T00:00:00').toLocaleDateString()}
                         </div>
                       )}
                     </div>

@@ -587,7 +587,7 @@ export function Herbs() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const recentPurchases = herbs.filter(herb =>
-      herb.purchases?.some(p => new Date(p.date) >= thirtyDaysAgo)
+      herb.purchases?.some(p => new Date(p.date + 'T00:00:00') >= thirtyDaysAgo)
     ).length;
 
     // Total purchase count

@@ -34,8 +34,8 @@ export function ConsistencyTracker() {
   const getStreakInfo = () => {
     if (entries.length === 0) return { current: 0, longest: 0 };
 
-    const sortedEntries = [...entries].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+    const sortedEntries = [...entries].sort((a, b) =>
+      new Date(b.date + 'T00:00:00').getTime() - new Date(a.date + 'T00:00:00').getTime()
     );
 
     let currentStreak = 0;
@@ -46,7 +46,7 @@ export function ConsistencyTracker() {
 
     // Calculate current streak
     for (let i = 0; i < sortedEntries.length; i++) {
-      const entryDate = new Date(sortedEntries[i].date);
+      const entryDate = new Date(sortedEntries[i].date + 'T00:00:00');
       entryDate.setHours(0, 0, 0, 0);
       
       const expectedDate = new Date(today);
@@ -60,7 +60,7 @@ export function ConsistencyTracker() {
     }
 
     // Calculate longest streak
-    const allDates = entries.map(e => new Date(e.date).getTime()).sort((a, b) => a - b);
+    const allDates = entries.map(e => new Date(e.date + 'T00:00:00').getTime()).sort((a, b) => a - b);
     
     for (let i = 0; i < allDates.length; i++) {
       if (i === 0 || allDates[i] - allDates[i - 1] === 86400000) {
@@ -78,7 +78,7 @@ export function ConsistencyTracker() {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     
-    const recentEntries = entries.filter(e => new Date(e.date) >= startDate);
+    const recentEntries = entries.filter(e => new Date(e.date + 'T00:00:00') >= startDate);
     return Math.round((recentEntries.length / days) * 100);
   };
 
